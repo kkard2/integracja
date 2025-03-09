@@ -22,6 +22,10 @@ public static class XmlReadWithSaxApproach
         reader = XmlReader.Create(path, settings);
         reader.MoveToContent();
         Ex3(reader);
+
+        reader = XmlReader.Create(path, settings);
+        reader.MoveToContent();
+        Ex4(reader);
     }
 
     private static void Ex1(XmlReader reader)
@@ -56,9 +60,7 @@ public static class XmlReadWithSaxApproach
                 if (encountered.TryGetValue(nazwaPowszechnieStosowana, out var list))
                 {
                     if (!list.Contains(postac))
-                    {
                         list.Add(postac);
-                    }
                 }
                 else
                 {
@@ -118,5 +120,33 @@ public static class XmlReadWithSaxApproach
 
         Console.WriteLine($"Podmiot(y) produkujący/e najwięcej ({maxKremCount}) kremów: {string.Join(", ", maxKremPodmiots)}");
         Console.WriteLine($"Podmiot(y) produkujący/e najwięcej ({maxTabletkiCount}) tabletek: {string.Join(", ", maxTabletkiPodmiots)}");
+    }
+
+    private static void Ex4(XmlReader reader)
+    {
+        var result = GetPodmiots()
+            .GroupBy(x => x)
+            .Select(x => new { Podmiot = x.Key, Count = x.Count() })
+            .OrderByDescending(x => x.Count)
+            // TODO: this is technically wrong, there can be ties
+            .Take(3)
+            .Zip(Enumerable.Range(1, 3));
+
+        Console.WriteLine("Podmioty produkujące najwięcej kremów:");
+        foreach (var (Value, Index) in result)
+            Console.WriteLine($"{Index}. {Value.Podmiot} ({Value.Count})");
+
+        IEnumerable<string> GetPodmiots()
+        {
+            while (reader.Read())
+            {
+                if (reader.NodeType == XmlNodeType.Element && reader.Name == "produktLeczniczy")
+                {
+                    if (reader.GetAttribute("podmiotOdpowiedzialny") is { } podmiot &&
+                        reader.GetAttribute("postac") == "Krem")
+                        yield return podmiot;
+                }
+            }
+        }
     }
 }

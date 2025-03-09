@@ -11,11 +11,13 @@ public static class XmlReadWithXlstDomApproach
         manager.AddNamespace("x", "http://rejestrymedyczne.ezdrowie.gov.pl/rpl/eksport-danych-v1.0");
 
         Ex1(nav, manager);
+        Ex2(nav, manager);
+        Ex3(nav, manager);
     }
 
     private static void Ex1(XPathNavigator nav, XmlNamespaceManager manager)
     {
-        XPathExpression query = nav.Compile(
+        var query = nav.Compile(
             "/x:produktyLecznicze/x:produktLeczniczy[@postac='Krem' and @nazwaPowszechnieStosowana='Mometasoni furoas']");
         query.SetContext(manager);
         var count = nav.Select(query).Count;
@@ -24,33 +26,61 @@ public static class XmlReadWithXlstDomApproach
 
     private static void Ex2(XPathNavigator nav, XmlNamespaceManager manager)
     {
-        
-        /*
-        // maps "nazwaPowszechnieStosowana" to "postac" list
-        var encountered = new Dictionary<string, HashSet<string>>();
+        var (kremPodmiots, kremCount) = GetMax("Krem");
+        Console.WriteLine($"Podmiot(y) produkujący/e najwięcej ({kremCount}) kremów: {string.Join(", ", kremPodmiots)}");
+        var (tabletkiPodmiots, tabletkiCount) = GetMax("Tabletki");
+        Console.WriteLine($"Podmiot(y) produkujący/e najwięcej ({tabletkiCount}) tabletek: {string.Join(", ", tabletkiPodmiots)}");
 
-        while (reader.Read())
+        (List<string> Podmiots, int Count) GetMax(string postac)
         {
-            if (reader.NodeType == XmlNodeType.Element && reader.Name == "produktLeczniczy")
-            {
-                if (reader.GetAttribute("nazwaPowszechnieStosowana") is not { } nazwaPowszechnieStosowana ||
-                    reader.GetAttribute("postac") is not { } postac)
-                    continue;
+            var query = nav.Compile(
+                $"/x:produktyLecznicze/x:produktLeczniczy[@postac='{postac}']/@podmiotOdpowiedzialny");
+            query.SetContext(manager);
+            var counts = nav
+                .Select(query)
+                .Cast<XPathNavigator>()
+                .GroupBy(x => x.Value);
 
-                if (encountered.TryGetValue(nazwaPowszechnieStosowana, out var list))
+            var maxCount = int.MinValue;
+            var maxPodmiots = new List<string>();
+
+            foreach (var c in counts)
+            {
+                var cur = c.Count();
+
+                if (cur > maxCount)
                 {
-                    if (!list.Contains(postac))
-                    {
-                        list.Add(postac);
-                    }
+                    maxCount = cur;
+                    maxPodmiots = [c.Key];
                 }
-                else
+                else if (cur == maxCount)
                 {
-                    encountered[nazwaPowszechnieStosowana] = [postac];
+                    maxPodmiots.Add(c.Key);
                 }
             }
+
+            return (maxPodmiots, maxCount);
         }
-        Console.WriteLine($"Liczba produktów leczniczych o takiej samie nazwie powszechnej, pod różnymi postaciami: {encountered.Count(x => x.Value.Count > 1)}");
-        */
+    }
+
+    private static void Ex3(XPathNavigator nav, XmlNamespaceManager manager)
+    {
+        var query = nav.Compile(
+            $"/x:produktyLecznicze/x:produktLeczniczy[@postac='Krem']/@podmiotOdpowiedzialny");
+        query.SetContext(manager);
+
+        var counts = nav
+            .Select(query)
+            .Cast<XPathNavigator>()
+            .GroupBy(x => x.Value)
+            .Select(x => new { Podmiot = x.Key, Count = x.Count() })
+            .OrderByDescending(x => x.Count)
+            // TODO: this is technically wrong, there can be ties
+            .Take(3)
+            .Zip(Enumerable.Range(1, 3));
+
+        Console.WriteLine("Podmioty produkujące najwięcej kremów:");
+        foreach (var (Value, Index) in counts)
+            Console.WriteLine($"{Index}. {Value.Podmiot} ({Value.Count})");
     }
 }

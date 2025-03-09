@@ -7,23 +7,14 @@ public static class XmlReadWithDomApproach
         var doc = new XmlDocument();
         doc.Load(path);
 
-        var drugs = doc.GetElementsByTagName("produktLeczniczy");
+        var drugs = doc.GetElementsByTagName("produktLeczniczy")
+            .Cast<XmlNode>()
+            .ToArray();
 
-        if (drugs is null)
-            throw new Exception("Reading XML failed.");
-
-        var drugsEnumerated = new List<XmlNode>();
-
-        foreach (var drug in drugs)
-        {
-            if (drug is not XmlNode d)
-                throw new Exception("XmlNode excpected.");
-            drugsEnumerated.Add(d);
-        }
-
-        Ex1(drugsEnumerated);
-        Ex2(drugsEnumerated);
-        Ex3(drugsEnumerated);
+        Ex1(drugs);
+        Ex2(drugs);
+        Ex3(drugs);
+        Ex4(drugs);
     }
 
     private static void Ex1(IEnumerable<XmlNode> drugs)
@@ -108,5 +99,22 @@ public static class XmlReadWithDomApproach
 
         Console.WriteLine($"Podmiot(y) produkujący/e najwięcej ({maxKremCount}) kremów: {string.Join(", ", maxKremPodmiots)}");
         Console.WriteLine($"Podmiot(y) produkujący/e najwięcej ({maxTabletkiCount}) tabletek: {string.Join(", ", maxTabletkiPodmiots)}");
+    }
+
+    private static void Ex4(IEnumerable<XmlNode> drugs)
+    {
+        var result = drugs
+            .Where(x => x.Attributes?.GetNamedItem("postac")?.Value == "Krem")
+            .Select(x => x.Attributes?.GetNamedItem("podmiotOdpowiedzialny")?.Value ?? string.Empty)
+            .GroupBy(x => x)
+            .Select(x => new { Podmiot = x.Key, Count = x.Count() })
+            .OrderByDescending(x => x.Count)
+            // TODO: this is technically wrong, there can be ties
+            .Take(3)
+            .Zip(Enumerable.Range(1, 3));
+
+        Console.WriteLine("Podmioty produkujące najwięcej kremów:");
+        foreach (var (Value, Index) in result)
+            Console.WriteLine($"{Index}. {Value.Podmiot} ({Value.Count})");
     }
 }
