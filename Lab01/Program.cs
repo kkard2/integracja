@@ -5,3 +5,5 @@ Console.WriteLine("\nSAX approach:");
 XmlReadWithSaxApproach.Read(xmlpath);
 Console.WriteLine("\nXLST DOM approach:");
 XmlReadWithXlstDomApproach.Read(xmlpath);
+
+Console.ReadLine();
